@@ -1,0 +1,12 @@
+package basicfile // import "github.com/skeptycal/goutil/basicfile"
+
+const NormalMode = gofile.NormalMode
+var ErrBadCount = errors.New("datafile: bad read count") ...
+type BF = interface{ ... }
+    func NewBasicFile(filename string) (BF, error)
+type Basicfile struct{ ... }
+type DataFile interface{ ... }
+    func NewDataFile(filename string) (DataFile, error)
+type Datafile struct{ ... }
+type FileInfo = gofile.FileInfo
+type TextFile interface{ ... }
