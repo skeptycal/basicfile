@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -14,32 +15,6 @@ const (
 	maxInt          = int(^uint(0) >> 1)
 	minRead         = bytes.MinRead
 )
-
-// Stat returns the os.FileInfo for file if it exists.
-//
-// It is a convenience wrapper for os.Stat that traps
-// and processes errors that may occur using the
-// the ErrorLogger package.
-//
-// If the file does not exist, nil is returned.
-// Errors are logged if Err is active.
-func Stat(filename string) (os.FileInfo, error) {
-	fi, err := os.Stat(filename)
-	if err != nil {
-		return nil, Err(NewGoFileError("gofile.Stat()", filename, err))
-	}
-	return fi, nil
-}
-
-func Exists(filename string) bool {
-	_, err := os.Stat(filename)
-	return errors.Is(err, os.ErrNotExist)
-}
-
-func NotExists(filename string) bool {
-	_, err := os.Stat(filename)
-	return errors.Is(err, os.ErrNotExist)
-}
 
 // FileInfo returns file information (after symlink evaluation
 // and path cleaning) using os.Stat().
@@ -87,6 +62,50 @@ func FileInfo(filename string) os.FileInfo {
 	}
 
 	return fi
+}
+
+// FileInfo returns the same information as
+// Stat() but without the error. An error is
+// implied if the return value is nil.
+func (f *basicFile) FileInfo() fs.FileInfo {
+	fi, err := f.Stat()
+	if Err(err) != nil {
+		return nil
+	}
+	return fi
+}
+
+func (f *basicFile) FileMode() FileMode {
+	if f.mode == 0 {
+		f.mode = f.FileInfo().Mode()
+	}
+	return f.mode
+}
+
+// Stat returns the os.FileInfo for file if it exists.
+//
+// It is a convenience wrapper for os.Stat that traps
+// and processes errors that may occur using the
+// the ErrorLogger package.
+//
+// If the file does not exist, nil is returned.
+// Errors are logged if Err is active.
+func Stat(filename string) (os.FileInfo, error) {
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return nil, Err(NewGoFileError("gofile.Stat()", filename, err))
+	}
+	return fi, nil
+}
+
+func Exists(filename string) bool {
+	_, err := os.Stat(filename)
+	return errors.Is(err, os.ErrNotExist)
+}
+
+func NotExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // Mode returns the filemode of file.

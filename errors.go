@@ -5,6 +5,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/skeptycal/errorlogger"
+)
+
+var (
+	log = errorlogger.New()
+	Err = log.Err
 )
 
 type (

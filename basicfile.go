@@ -8,16 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/skeptycal/errorlogger"
 )
 
 const (
 	NormalMode os.FileMode = 0644
 	DirMode    os.FileMode = 0755
 )
-
-var Err = errorlogger.Err
 
 func NewFileWithErr(providedName string) (BasicFile, error) {
 	return nil, ErrNotImplemented
@@ -122,19 +118,120 @@ func NewFile(providedName string) BasicFile {
 //  }
 type BasicFile interface {
 	// Handle returns the file handle, *os.File.
-	// The minimum interface that is implemented
-	// by a File is:
-	GoFile
-	//  Stat()
 	Handle() *os.File
 
-	// Stat returns the FileInfo portion of the
-	// BasicFile interface.
-	Stat() (fs.FileInfo, error)
-	// io.ReadCloser
+	// The minimum interface that is implemented
+	// by a File is:
+	Seek(offset int64, whence int) (int64, error)
+	Open() error
+	Create() error
 
-	FileModer
-	fs.FileInfo
+	// GoFile interface {
+	// 	Seek(offset int64, whence int) (int64, error)
+	// 	Open() error
+	// 	Create() error
+	//
+	// 	fs.File
+	//
+	// 	io.Writer
+	// 	io.StringWriter
+	//
+	// 	// ReaderFrom is the interface that wraps
+	// 	// the ReadFrom method.
+	// 	//
+	// 	// ReadFrom reads data from r until EOF or error.
+	// 	// The return value n is the number of bytes read.
+	// 	// Any error except EOF encountered during the
+	// 	// read is also returned.
+	// 	//
+	// 	// The Copy function uses ReaderFrom if available.
+	// 	io.ReaderFrom
+	//
+	// 	// WriterTo is the interface that wraps the
+	// 	// WriteTo method:
+	// 	//     WriteTo(w Writer) (n int64, err error)
+	// 	//
+	// 	// WriteTo writes data to w until there's no
+	// 	// more data to write or when an error occurs.
+	// 	// The return value n is the number of bytes
+	// 	// written. Any error encountered during the
+	// 	// write is also returned.
+	// 	//
+	// 	// The Copy function uses WriterTo if available.
+	// 	//
+	// 	io.WriterTo
+	//
+	// 	// ReaderAt is the interface that wraps the basic ReadAt method.
+	// 	// 	ReadAt(p []byte, off int64) (n int, err error)
+	// 	//
+	// 	// ReadAt reads len(p) bytes into p starting at offset off in the underlying input source. It returns the number of bytes read (0 <= n <= len(p)) and any error encountered.
+	// 	//
+	// 	// When ReadAt returns n < len(p), it returns a non-nil error explaining why more bytes were not returned. In this respect, ReadAt is stricter than Read.
+	// 	//
+	// 	// Even if ReadAt returns n < len(p), it may use all of p as scratch space during the call. If some data is available but not len(p) bytes, ReadAt blocks until either all the data is available or an error occurs. In this respect ReadAt is different from Read.
+	// 	//
+	// 	// If the n = len(p) bytes returned by ReadAt are at the end of the input source, ReadAt may return either err == EOF or err == nil.
+	// 	//
+	// 	// If ReadAt is reading from an input source with a seek offset, ReadAt should not affect nor be affected by the underlying seek offset.
+	// 	//
+	// 	// Clients of ReadAt can execute parallel ReadAt calls on the same input source.
+	// 	//
+	// 	// Implementations must not retain p.
+	// 	io.ReaderAt
+	//
+	// 	// WriterAt is the interface that wraps the basic WriteAt method.
+	// 	// 	WriteAt(p []byte, off int64) (n int, err error)
+	// 	//
+	// 	// WriteAt writes len(p) bytes from p to the underlying data stream at offset off. It returns the number of bytes written from p (0 <= n <= len(p)) and any error encountered that caused the write to stop early. WriteAt must return a non-nil error if it returns n < len(p).
+	// 	//
+	// 	// If WriteAt is writing to a destination with a seek offset, WriteAt should not affect nor be affected by the underlying seek offset.
+	// 	io.WriterAt
+	//
+	// 	// FileInfo methods
+	// 	// Name() string       // base name of the file
+	// 	// Size() int64        // length in bytes for regular files; system-dependent for others
+	// 	// Mode() FileMode     // file mode bits
+	// 	// ModTime() time.Time // modification time
+	// 	// IsDir() bool        // abbreviation for Mode().IsDir()
+	// 	// Sys() interface{}   // underlying data source (can return nil)
+	// 	fs.FileInfo
+	//
+	// 	// FileMode methods
+	// 	// String() string 	// human-readable representation of the file
+	// 	// IsDir() bool 	// abbreviation for Mode().IsDir()
+	// 	// IsRegular() bool // IsRegular reports whether m is a regular file.
+	// 	// Perm() FileMode	// Perm returns the Unix permission bits
+	// 	// Type() FileMode
+	// 	FileModer
+	//
+	// 	// FileOps methods
+	// 	// Abs() (string, error)
+	// 	// Base(path string) string
+	// 	// Chmod(mode os.FileMode) error
+	// 	// Dir(path string) string
+	// 	// Ext(path string) string
+	// 	// Move(path string) error
+	// 	// Split(path string) (dir, file string)
+	// 	FileOps
+	//
+	// 	// Unix File Operations
+	// 	// 	Fd() uintptr
+	// 	// 	Link(newname string) error
+	// 	// 	Readlink() (string, error)
+	// 	// 	Remove() error
+	// 	// 	Symlink(newname string) error
+	// 	// 	Truncate(size int64) error
+	// 	FileUnix
+	// }
+	GoFile
+
+	// fs.File
+	Stat() (fs.FileInfo, error)
+	Read([]byte) (int, error)
+	Close() error
+
+	// FileModer
+	// fs.FileInfo
 
 	// Additional basic methods:
 	// Abs() string // absolute path of the file
@@ -174,35 +271,55 @@ Sync(). Error
 
 type (
 	basicFile struct {
-		providedName string      // original user input
-		fi           os.FileInfo // cached file information
-		modTime      time.Time   // used to validate cache entries
-		*os.File                 // underlying file handle
+		providedName string // original user input
 		lock         bool
+		isDirty      bool
+		fi           os.FileInfo // cached file information
+		mode         FileMode    // cached file mode
+		modTime      time.Time   // used to validate cache entries
+
+		bufio.ReadWriter
+
+		*os.File // underlying file handle
 	}
 )
 
 ////////////// Return component interfaces
 
-// Handle returns the file handle, *os.File.
+// file returns the file handle, *os.File.
 // The minimum interface that is implemented
 // by a File is:
 //  io.ReadCloser
 //  Stat()
-func (f *basicFile) Handle() *os.File {
-	return f.file()
-}
-
+//
+// This implementation also has:
+//  io.Writer, io.StringWriter, io.ReaderFrom, io.WriterTo, io.ReaderAt, io.WriterAt
 func (f *basicFile) file() *os.File {
-	if f.File == nil {
-		ff, err := os.Open(f.providedName)
+	if f.File == nil || f.isDirty {
+		ff, err := os.OpenFile(f.providedName, os.O_RDWR, NormalMode)
 		if Err(err) != nil {
 			return nil
 		}
 		f.File = ff
 	}
+
 	return f.File
 }
+
+func (f *basicFile) rwc() Handle {
+	f.isDirty = true
+	ff := f.file()
+	if ff == nil {
+		return nil
+	}
+
+	b := bufio.NewReadWriter(f.Reader().(*bufio.Reader), f.Writer().(*bufio.Writer))
+
+	return b
+}
+
+func (f *basicFile) Reader() io.Reader { return bufio.NewReader(f.File) }
+func (f *basicFile) Writer() io.Writer { return bufio.NewWriter(f.File) }
 
 func (f *basicFile) Stat() (fs.FileInfo, error) {
 	if f.fi == nil {
@@ -213,17 +330,6 @@ func (f *basicFile) Stat() (fs.FileInfo, error) {
 		f.fi = fi
 	}
 	return f.fi, nil
-}
-
-// FileInfo returns the same information as
-// Stat() but without the error. An error is
-// implied if the return value is nil.
-func (f *basicFile) FileInfo() fs.FileInfo {
-	fi, err := f.Stat()
-	if Err(err) != nil {
-		return nil
-	}
-	return fi
 }
 
 // Flush flushes any in-memory copy of recent changes,
