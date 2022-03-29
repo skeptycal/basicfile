@@ -1,4 +1,4 @@
-module github.com/skeptycal/goutil/os/basicfile
+module github.com/skeptycal/basicfile
 
 go 1.18
 
