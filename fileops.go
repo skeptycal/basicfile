@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/skeptycal/gofile"
 )
 
 const (
@@ -131,11 +129,13 @@ func Open(name string) (BasicFile, error) {
 //
 // If there is an error, it will be of type *PathError.
 func Create(name string) (BasicFile, error) {
-	b, err := NewBasicFile(name)
+	b := &basicFile{providedName: name, File: f, modTime: time.Now()}
+
+	err := b.create()
 	if err != nil {
 		return nil, err
 	}
-
+	wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 	// standard library: OpenFile is the generalized open call; most users
 	// will use Open or Create instead. It opens the named file with specified
 	// flag (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
@@ -164,7 +164,7 @@ func Create(name string) (BasicFile, error) {
 func CreateSafe(name string) (io.ReadWriteCloser, error) {
 	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_APPEND, NormalMode)
 	if err != nil {
-		return nil, &PathError{Op: "gofile.CreateSafe", Path: name, Err: err}
+		return nil, NewGoFileError("gofile.CreateSafe", name, err)
 	}
 	return f, nil
 }

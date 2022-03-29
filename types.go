@@ -125,7 +125,7 @@ type (
 	}
 
 	FileOps interface {
-		Abs() (string, error)
+		Abs() string
 		Base(path string) string
 		Chmod(mode os.FileMode) error
 		Chown(uid int, gid int) error

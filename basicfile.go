@@ -17,8 +17,6 @@ const (
 
 var Err = errorlogger.Err
 
-var ErrNotImplemented = NewGoFileError("")
-
 func NewFileWithErr(providedName string) (BasicFile, error) {
 	return nil, ErrNotImplemented
 }
@@ -137,7 +135,7 @@ type BasicFile interface {
 	fs.FileInfo
 
 	// Additional basic methods:
-	Abs() string // absolute path of the file
+	// Abs() string // absolute path of the file
 	// IsRegular() bo,ol // is a regular file?
 	// String() string
 
@@ -233,7 +231,7 @@ func (f *basicFile) FileInfo() fs.FileInfo {
 // be unavailable.
 func (f *basicFile) Flush() error {
 	if f.Locked() {
-		return errFileLocked
+		return ErrFileLocked
 	}
 	f.Lock()
 	defer f.Unlock()
