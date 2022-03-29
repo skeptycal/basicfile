@@ -6,7 +6,7 @@ import (
 )
 
 type TextFile interface {
-	BF
+	BasicFile
 	Text() string
 	Lines() (retval []string, err error)
 	Sep(c byte)
@@ -14,7 +14,7 @@ type TextFile interface {
 
 // textfile is a file type that is specialized for utf-8 text
 type textfile struct {
-	Basicfile
+	basicFile
 	linesep   byte
 	recordsep byte
 	data      string

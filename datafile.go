@@ -1,4 +1,4 @@
-package gofile
+package basicfile
 
 type (
 	// For use with cached data sources

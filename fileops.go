@@ -1,4 +1,4 @@
-package gofile
+package basicfile
 
 import (
 	"bytes"
@@ -7,8 +7,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
-	"github.com/skeptycal/goutil/gofile"
+	"github.com/skeptycal/gofile"
 )
 
 const (
@@ -28,14 +29,14 @@ const (
 func Stat(filename string) (os.FileInfo, error) {
 	fi, err := os.Stat(filename)
 	if err != nil {
-		return nil, Err(gofile.NewGoFileError("gofile.Stat()", filename, err))
+		return nil, Err(NewGoFileError("gofile.Stat()", filename, err))
 	}
 	return fi, nil
 }
 
 func Exists(filename string) bool {
 	_, err := os.Stat(filename)
-	return errors.Is(err, ErrNotExist)
+	return errors.Is(err, os.ErrNotExist)
 }
 
 func NotExists(filename string) bool {
@@ -43,15 +44,11 @@ func NotExists(filename string) bool {
 	return errors.Is(err, os.ErrNotExist)
 }
 
-// StatCheck returns file information (after symlink evaluation)
-// using os.Stat(). If the file does not exist, is not a regular file,
-// or if the user lacks adequate permissions, an error is returned.
-// StatCheck returns file information (after symlink evaluation
+// FileInfo returns file information (after symlink evaluation
 // and path cleaning) using os.Stat().
 //
 // If the file does not exist, is not a regular file,
-// or if the user lacks adequate permissions, an error is
-// returned.
+// or if the user lacks adequate permissions, an error is logged and nil is returned.
 //
 // It is a convenience wrapper for os.Stat that traps
 // and processes errors that may occur using the
@@ -59,38 +56,45 @@ func NotExists(filename string) bool {
 //
 // If the file does not exist, nil is returned.
 // Errors are logged if Err is active.
-func StatCheck(filename string) (os.FileInfo, error) {
+func FileInfo(filename string) os.FileInfo {
 
 	// EvalSymlinks also calls Abs and Clean as well as
 	// checking for existance of the file.
 	filename, err := filepath.EvalSymlinks(filename)
 	if err != nil {
-		return nil, Err(err)
+		Err(err)
+		return nil
 	}
 
 	fi, err := os.Stat(filename)
 	if err != nil {
-		return nil, Err(err)
+		Err(err)
+		return nil
 	}
 
 	//Check 'others' permission
 	m := fi.Mode()
 	if m&(1<<2) == 0 {
-		return nil, fmt.Errorf("insufficient permissions: %v", filename)
+		Err(fmt.Errorf("insufficient permissions: %v", filename))
+		return nil
 	}
 
 	if fi.IsDir() {
-		return nil, fmt.Errorf("the filename %s refers to a directory", filename)
+		Err(fmt.Errorf("the filename %s refers to a directory", filename))
+		return nil
 	}
 
 	if !fi.Mode().IsRegular() {
-		return nil, fmt.Errorf("the filename %s is not a regular file", filename)
+		Err(fmt.Errorf("the filename %s is not a regular file", filename))
+		return nil
 	}
 
-	return fi, err
+	return fi
 }
 
 // Mode returns the filemode of file.
+// If an error occurs, it is logged
+// and 0 is returned.
 func Mode(file string) os.FileMode {
 	fi, err := Stat(file)
 	if err != nil {
@@ -101,7 +105,6 @@ func Mode(file string) os.FileMode {
 }
 
 func NewBasicFile(filename string) (BasicFile, error) {
-
 	return &basicFile{providedName: filename}, nil
 }
 
@@ -111,7 +114,7 @@ func NewBasicFile(filename string) (BasicFile, error) {
 // If there is an error, it will be of type *os.PathError.
 func Open(name string) (BasicFile, error) {
 	f, err := os.Open(name)
-	if err != nil {
+	if Err(err) != nil {
 		return nil, NewGoFileError("gofile.Open", name, err)
 	}
 
@@ -127,7 +130,11 @@ func Open(name string) (BasicFile, error) {
 // for I/O; the associated file descriptor has mode O_RDWR.
 //
 // If there is an error, it will be of type *PathError.
-func Create(name string) (io.ReadWriteCloser, error) {
+func Create(name string) (BasicFile, error) {
+	b, err := NewBasicFile(name)
+	if err != nil {
+		return nil, err
+	}
 
 	// standard library: OpenFile is the generalized open call; most users
 	// will use Open or Create instead. It opens the named file with specified
@@ -137,8 +144,10 @@ func Create(name string) (io.ReadWriteCloser, error) {
 	// it will be of type *PathError.
 	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, NormalMode)
 	if err != nil {
-		return nil, &PathError{Op: "gofile.Create", Path: name, Err: err}
+		return nil, Err(NewGoFileError("gofile.Create", name, err))
 	}
+
+	b := &basicFile{providedName: name, File: f, modTime: time.Now()}
 
 	return f, nil
 }

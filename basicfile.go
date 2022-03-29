@@ -1,4 +1,4 @@
-package gofile
+package basicfile
 
 import (
 	"fmt"
@@ -7,14 +7,20 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/skeptycal/goutil/errorlogger"
-	"github.com/skeptycal/goutil/gofile"
+	"github.com/skeptycal/errorlogger"
+)
+
+const (
+	NormalMode os.FileMode = 0644
+	DirMode    os.FileMode = 0755
 )
 
 var Err = errorlogger.Err
 
+var ErrNotImplemented = NewGoFileError("")
+
 func NewFileWithErr(providedName string) (BasicFile, error) {
-	return nil, gofile.ErrNotImplemented
+	return nil, ErrNotImplemented
 }
 
 // NewFile returns a new BasicFile, but no error,
@@ -128,11 +134,11 @@ type BasicFile interface {
 	// io.ReadCloser
 
 	FileModer
-	FileInfo
+	fs.FileInfo
 
 	// Additional basic methods:
 	Abs() string // absolute path of the file
-	// IsRegular() bool // is a regular file?
+	// IsRegular() bo,ol // is a regular file?
 	// String() string
 
 }
@@ -197,7 +203,8 @@ func (f *basicFile) file() *os.File {
 	}
 	return f.File
 }
-func (f *basicFile) Stat() (FileInfo, error) {
+
+func (f *basicFile) Stat() (fs.FileInfo, error) {
 	if f.fi == nil {
 		fi, err := os.Stat(f.Name())
 		if Err(err) != nil {
@@ -208,7 +215,7 @@ func (f *basicFile) Stat() (FileInfo, error) {
 	return f.fi, nil
 }
 
-func (f *basicFile) FileInfo() FileInfo {
+func (f *basicFile) FileInfo() fs.FileInfo {
 	fi, _ := f.Stat()
 	return fi
 }
@@ -268,7 +275,7 @@ func (f *basicFile) timeStamp() time.Time {
 }
 
 // Mode - returns the file mode bits
-func (f *basicFile) Mode() FileMode {
+func (f *basicFile) Mode() fs.FileMode {
 	return f.FileInfo().Mode()
 }
 
@@ -309,14 +316,24 @@ func (f *basicFile) IsRegular() bool {
 	return f.FileInfo().Mode().IsRegular()
 }
 
-func (f *basicFile) Perm() FileMode {
+func (f *basicFile) Perm() fs.FileMode {
 	return f.FileInfo().Mode().Perm()
 }
 
-func (f *basicFile) Type() FileMode {
+func (f *basicFile) Type() fs.FileMode {
 	return f.FileInfo().Mode().Type()
 }
 
 func (f *basicFile) String() string {
 	return fmt.Sprintf("%8s %15s", f.Mode(), f.Name())
+}
+
+func (bf *basicFile) create() error {
+	f, err := os.OpenFile(bf.providedName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, NormalMode)
+	if err != nil {
+		return Err(NewGoFileError("gofile.Create", bf.providedName, err))
+	}
+
+	bf.File = f
+	return nil
 }
