@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 const (
@@ -129,13 +128,15 @@ func Open(name string) (BasicFile, error) {
 //
 // If there is an error, it will be of type *PathError.
 func Create(name string) (BasicFile, error) {
-	b := &basicFile{providedName: name, File: f, modTime: time.Now()}
+	b := &basicFile{providedName: name}
 
-	err := b.create()
+	err := b.Create()
 	if err != nil {
 		return nil, err
 	}
-	wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+
+	defer b.timeStamp()
+
 	// standard library: OpenFile is the generalized open call; most users
 	// will use Open or Create instead. It opens the named file with specified
 	// flag (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
@@ -147,9 +148,9 @@ func Create(name string) (BasicFile, error) {
 		return nil, Err(NewGoFileError("gofile.Create", name, err))
 	}
 
-	b := &basicFile{providedName: name, File: f, modTime: time.Now()}
+	b.File = f
 
-	return f, nil
+	return b, nil
 }
 
 // CreateSafe creates the named file and returns an

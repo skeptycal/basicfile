@@ -1,7 +1,9 @@
 package basicfile
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -213,8 +215,14 @@ func (f *basicFile) Stat() (fs.FileInfo, error) {
 	return f.fi, nil
 }
 
+// FileInfo returns the same information as
+// Stat() but without the error. An error is
+// implied if the return value is nil.
 func (f *basicFile) FileInfo() fs.FileInfo {
-	fi, _ := f.Stat()
+	fi, err := f.Stat()
+	if Err(err) != nil {
+		return nil
+	}
 	return fi
 }
 
@@ -290,6 +298,38 @@ func (f *basicFile) Abs() string {
 	return s
 }
 
+// Base returns the last element of path. Trailing path separators are removed before extracting the last element. If the path is empty, Base returns ".". If the path consists entirely of separators, Base returns a single separator.
+func (f *basicFile) Base() string { return filepath.Base(f.Abs()) }
+
+// Dir returns all but the last element of path, typically the path's directory. After dropping the final element, Dir calls Clean on the path and trailing slashes are removed. If the path is empty, Dir returns ".". If the path consists entirely of separators, Dir returns a single separator. The returned path does not end in a separator unless it is the root directory.
+func (f *basicFile) Dir() string { return filepath.Dir(f.Abs()) }
+
+// Ext returns the file name extension used by path. The extension is the suffix beginning at the final dot in the final element of path; it is empty if there is no dot.
+func (f *basicFile) Ext() string { return filepath.Ext(f.Abs()) }
+
+// Split splits path immediately following the final Separator, separating it into a directory and file name component. If there is no Separator in path, Split returns an empty dir and file set to path. The returned values have the property that path = dir+file.
+func (f *basicFile) Split() (dir, file string) { return filepath.Split(f.Abs()) }
+
+func (f *basicFile) Link(newname string) error { return os.Link(f.Abs(), newname) }
+
+func (f *basicFile) Move(newname string) error   { return os.Rename(f.Abs(), newname) }
+func (f *basicFile) Rename(newname string) error { return os.Rename(f.Abs(), newname) }
+
+func (f *basicFile) Readlink() (string, error)    { return os.Readlink(f.Abs()) }
+func (f *basicFile) Symlink(newname string) error { return os.Symlink(f.Abs(), newname) }
+
+func (f *basicFile) WriteTo(w io.Writer) (n int64, err error) {
+	return bufio.NewReader(f.File).WriteTo(w)
+}
+
+func (f *basicFile) Remove() error {
+	err := os.Remove(f.Abs())
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
 // Size - returns the length in bytes for regular files; system-dependent for others
 func (f *basicFile) Size() int64 {
 	return f.FileInfo().Size()
@@ -326,10 +366,20 @@ func (f *basicFile) String() string {
 	return fmt.Sprintf("%8s %15s", f.Mode(), f.Name())
 }
 
-func (bf *basicFile) create() error {
+func (bf *basicFile) Create() error {
 	f, err := os.OpenFile(bf.providedName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, NormalMode)
 	if err != nil {
-		return Err(NewGoFileError("gofile.Create", bf.providedName, err))
+		return Err(NewGoFileError("gofile.create", bf.providedName, err))
+	}
+
+	bf.File = f
+	return nil
+}
+
+func (bf *basicFile) Open() error {
+	f, err := os.OpenFile(bf.providedName, os.O_RDONLY, NormalMode)
+	if err != nil {
+		return Err(NewGoFileError("gofile.open", bf.providedName, err))
 	}
 
 	bf.File = f

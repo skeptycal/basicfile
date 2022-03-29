@@ -16,7 +16,8 @@ type (
 
 	GoFile interface {
 		Seek(offset int64, whence int) (int64, error)
-		Open(name string) (GoFile, error)
+		Open() error
+		Create() error
 
 		fs.File
 
@@ -126,13 +127,14 @@ type (
 
 	FileOps interface {
 		Abs() string
-		Base(path string) string
+		Base() string
+		Dir() string
+		Ext() string
+		Split() (dir, file string)
+
 		Chmod(mode os.FileMode) error
 		Chown(uid int, gid int) error
-		Dir(path string) string
-		Ext(path string) string
-		Move(path string) error
-		Split(path string) (dir, file string)
+		Move(newpath string) error
 		Sync() error
 
 		SetDeadline(t time.Time) error

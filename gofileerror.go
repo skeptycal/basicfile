@@ -59,12 +59,11 @@ func NewGoFileError(op, path string, err error) *GoFileError {
 		}
 	}
 
-	return &GoFileError{
-		Op:   "gofile: " + op,
+	gfe := &GoFileError{
+		Op:   prependGoFilePrefix(op),
 		Path: path,
 		Err:  &os.PathError{Op: op, Path: path, Err: err},
 	}
-	gfe := &GoFileError{Op: prependGoFilePrefix(op), Path: path, Err: err}
 	gfe.Wrap("gofile stack trace")
 	return gfe
 }
