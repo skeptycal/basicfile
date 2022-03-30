@@ -7,9 +7,9 @@ var NewSyscallError = os.NewSyscallError
 var SameFile = os.SameFile
 func CreateSafe(name string) (io.ReadWriteCloser, error)
 func Exists(filename string) bool
-func GetFileInfo(filename string) os.FileInfo
 func NotExists(filename string) bool
 func PWD() string
+func RegularFileInfo(filename string) os.FileInfo
 func Stat(filename string) (os.FileInfo, error)
 type BasicFile interface{ ... }
     func Create(name string) (BasicFile, error)
