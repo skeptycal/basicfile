@@ -8,16 +8,88 @@ import (
 	"time"
 )
 
+// // NewBufferedSectionWriter converts incoming Write() requests into
+// // buffered, asynchronous WriteAt()'s in a section of a file.
+// // Reference: https://github.com/couchbase/moss
+// func NewBufferedSectionWriter(w io.WriterAt, begPos, maxBytes int64,
+// 	bufSize int) *bufferedSectionWriter {
+// 	stopCh := make(chan struct{})
+// 	doneCh := make(chan struct{})
+// 	reqCh := make(chan ioBuf)
+// 	resCh := make(chan ioBuf)
+
+// 	go func() {
+// 		defer close(doneCh)
+// 		defer close(resCh)
+
+// 		buf := make([]byte, bufSize)
+// 		var pos int64
+// 		var err error
+
+// 		for {
+// 			select {
+// 			case <-stopCh:
+// 				return
+// 			case resCh <- ioBuf{buf: buf, pos: pos, err: err}:
+// 			}
+
+// 			req, ok := <-reqCh
+// 			if ok {
+// 				buf, pos = req.buf, req.pos
+// 				if len(buf) > 0 {
+// 					_, err = w.WriteAt(buf, pos)
+// 				}
+// 			}
+// 		}
+// 	}()
+
+// 	return &bufferedSectionWriter{
+// 		w:   w,
+// 		beg: begPos,
+// 		cur: begPos,
+// 		max: maxBytes,
+// 		buf: make([]byte, bufSize),
+
+// 		stopCh: stopCh,
+// 		doneCh: doneCh,
+// 		reqCh:  reqCh,
+// 		resCh:  resCh,
+// 	}
+// }
+
+// replicate is a function found at
+// Reference: https://github.com/maxymania/metaclusterfs
+func replicate(dst io.WriterAt, src io.ReaderAt) (err error) {
+	buf := make([]byte, 1<<12)
+	p := int64(0)
+	for {
+		n, e := src.ReadAt(buf, p)
+		err = e
+		if n > 0 {
+			dst.WriteAt(buf[:n], p)
+		}
+		if err != nil {
+			break
+		}
+	}
+	return
+}
+
 type (
+
+	// Implements ReadWriteCloser for bufio.ReadWriter
 	bufRWC struct {
-		bufio.ReadWriter
+		*bufio.ReadWriter
 		Closer
 	}
 
 	Handle interface {
 		io.ReadWriteCloser
 		io.StringWriter
+		RWToFrom
+	}
 
+	RWToFrom interface {
 		// ReaderFrom is the interface that wraps
 		// the ReadFrom method.
 		//
@@ -42,7 +114,9 @@ type (
 		// The Copy function uses WriterTo if available.
 		//
 		io.WriterTo
+	}
 
+	RWAt interface {
 		// ReaderAt is the interface that wraps the basic ReadAt method.
 		// 	ReadAt(p []byte, off int64) (n int, err error)
 		//
@@ -59,7 +133,7 @@ type (
 		// Clients of ReadAt can execute parallel ReadAt calls on the same input source.
 		//
 		// Implementations must not retain p.
-		io.ReaderAt
+		// io.ReaderAt
 
 		// WriterAt is the interface that wraps the basic WriteAt method.
 		// 	WriteAt(p []byte, off int64) (n int, err error)
@@ -67,7 +141,7 @@ type (
 		// WriteAt writes len(p) bytes from p to the underlying data stream at offset off. It returns the number of bytes written from p (0 <= n <= len(p)) and any error encountered that caused the write to stop early. WriteAt must return a non-nil error if it returns n < len(p).
 		//
 		// If WriteAt is writing to a destination with a seek offset, WriteAt should not affect nor be affected by the underlying seek offset.
-		io.WriterAt
+		// io.WriterAt
 	}
 
 	FileOps interface {
@@ -100,6 +174,6 @@ type (
 )
 
 func (b *bufRWC) Close() error {
-
+	// TODO: implement this ...
 	return nil
 }

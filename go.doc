@@ -1,0 +1,38 @@
+package basicfile // import "github.com/skeptycal/basicfile"
+
+const NormalMode os.FileMode = 0644 ...
+var Err ...
+var ErrNoAlloc = NewGoFileError("memory allocation failure", "", ErrInvalid) ...
+var NewSyscallError = os.NewSyscallError
+var SameFile = os.SameFile
+func CreateSafe(name string) (io.ReadWriteCloser, error)
+func Exists(filename string) bool
+func GetFileInfo(filename string) os.FileInfo
+func NotExists(filename string) bool
+func PWD() string
+func Stat(filename string) (os.FileInfo, error)
+type BasicFile interface{ ... }
+    func Create(name string) (BasicFile, error)
+    func NewBasicFile(filename string) (BasicFile, error)
+    func Open(name string) (BasicFile, error)
+type Closer interface{ ... }
+type DataFile = BasicFile
+type Errer interface{ ... }
+    func NewPathError(op, path string, err error) Errer
+type FS = fs.FS
+type FileInfo = fs.FileInfo
+type FileMode = fs.FileMode
+    func Mode(file string) FileMode
+type FileOps interface{ ... }
+type FileUnix interface{ ... }
+type GoDir interface{ ... }
+type GoFile interface{ ... }
+type GoFileError struct{ ... }
+    func NewGoFileError(op, path string, err error) *GoFileError
+    func SetError(op, path string, err GoFileError) GoFileError
+type Handle interface{ ... }
+type RWAt interface{}
+type RWToFrom interface{ ... }
+type ReadDirFile = fs.ReadDirFile
+type SyscallError = os.SyscallError
+type TextFile interface{ ... }

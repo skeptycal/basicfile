@@ -2,7 +2,6 @@ package basicfile
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -10,16 +9,15 @@ import (
 	"time"
 )
 
-const (
-	NormalMode os.FileMode = 0644
-	DirMode    os.FileMode = 0755
-)
+func NewBasicFile(filename string) (BasicFile, error) {
+	return &basicFile{providedName: filename}, nil
+}
 
-func NewFileWithErr(providedName string) (BasicFile, error) {
+func newFileWithErr(providedName string) (BasicFile, error) {
 	return nil, ErrNotImplemented
 }
 
-// NewFile returns a new BasicFile, but no error,
+// newFile returns a new BasicFile, but no error,
 // as is the custom in the standard library os
 // package. Most often, if a file cannot be opened
 // or created, we do not care why. It is often
@@ -41,12 +39,77 @@ func NewFileWithErr(providedName string) (BasicFile, error) {
 // If you care about a *specific* error, use
 //  NewFileWithErr() (f *os.File, err error)
 // for a more os.Open()-ish way.
-func NewFile(providedName string) BasicFile {
-	f, err := NewFileWithErr(providedName)
+func newFile(providedName string) BasicFile {
+	f, err := newFileWithErr(providedName)
 	if Err(err) != nil {
 		return nil
 	}
 	return f
+}
+
+// Open opens the named file for reading as an in memory object.
+// If successful, methods on the returned file can be used for
+// reading; the associated file descriptor has mode O_RDONLY.
+// If there is an error, it will be of type *os.PathError.
+func Open(name string) (BasicFile, error) {
+	f, err := os.Open(name)
+	if Err(err) != nil {
+		return nil, NewGoFileError("gofile.Open", name, err)
+	}
+
+	return NewBasicFile(f.Name())
+}
+
+// Create creates or truncates the named file and returns an
+// opened file as io.ReadWriteCloser.
+//
+// If the file already exists, it is truncated. If the file
+// does not exist, it is created with mode 0644 (before umask).
+// If successful, methods on the returned File can be used
+// for I/O; the associated file descriptor has mode O_RDWR.
+//
+// If there is an error, it will be of type *PathError.
+func Create(name string) (BasicFile, error) {
+	b := &basicFile{providedName: name}
+
+	err := b.Create()
+	if err != nil {
+		return nil, err
+	}
+
+	defer b.timeStamp()
+
+	// standard library: OpenFile is the generalized open call; most users
+	// will use Open or Create instead. It opens the named file with specified
+	// flag (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
+	// is passed, it is created with mode perm (before umask). If successful,
+	// methods on the returned File can be used for I/O. If there is an error,
+	// it will be of type *PathError.
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, NormalMode)
+	if err != nil {
+		return nil, Err(NewGoFileError("gofile.Create", name, err))
+	}
+
+	b.File = f
+
+	return b, nil
+}
+
+// CreateSafe creates the named file and returns an
+// opened file as io.ReadWriteCloser.
+//
+// If the file already exists, an error is returned. If the file
+// does not exist, it is created with mode 0644 (before umask).
+// If successful, methods on the returned File can be used
+// for I/O; the associated file descriptor has mode O_RDWR.
+//
+// If there is an error, it will be of type *PathError.
+func CreateSafe(name string) (io.ReadWriteCloser, error) {
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_APPEND, NormalMode)
+	if err != nil {
+		return nil, NewGoFileError("gofile.CreateSafe", name, err)
+	}
+	return f, nil
 }
 
 // A BasicFile provides access to a single file as an in
@@ -120,109 +183,16 @@ type BasicFile interface {
 	// Handle returns the file handle, *os.File.
 	Handle() *os.File
 
+	// Dirty sets isDirty to true, forcing any
+	// cached values to be recalculated.
+	Dirty()
+
 	// The minimum interface that is implemented
 	// by a File is:
 	Seek(offset int64, whence int) (int64, error)
 	Open() error
 	Create() error
 
-	// GoFile interface {
-	// 	Seek(offset int64, whence int) (int64, error)
-	// 	Open() error
-	// 	Create() error
-	//
-	// 	fs.File
-	//
-	// 	io.Writer
-	// 	io.StringWriter
-	//
-	// 	// ReaderFrom is the interface that wraps
-	// 	// the ReadFrom method.
-	// 	//
-	// 	// ReadFrom reads data from r until EOF or error.
-	// 	// The return value n is the number of bytes read.
-	// 	// Any error except EOF encountered during the
-	// 	// read is also returned.
-	// 	//
-	// 	// The Copy function uses ReaderFrom if available.
-	// 	io.ReaderFrom
-	//
-	// 	// WriterTo is the interface that wraps the
-	// 	// WriteTo method:
-	// 	//     WriteTo(w Writer) (n int64, err error)
-	// 	//
-	// 	// WriteTo writes data to w until there's no
-	// 	// more data to write or when an error occurs.
-	// 	// The return value n is the number of bytes
-	// 	// written. Any error encountered during the
-	// 	// write is also returned.
-	// 	//
-	// 	// The Copy function uses WriterTo if available.
-	// 	//
-	// 	io.WriterTo
-	//
-	// 	// ReaderAt is the interface that wraps the basic ReadAt method.
-	// 	// 	ReadAt(p []byte, off int64) (n int, err error)
-	// 	//
-	// 	// ReadAt reads len(p) bytes into p starting at offset off in the underlying input source. It returns the number of bytes read (0 <= n <= len(p)) and any error encountered.
-	// 	//
-	// 	// When ReadAt returns n < len(p), it returns a non-nil error explaining why more bytes were not returned. In this respect, ReadAt is stricter than Read.
-	// 	//
-	// 	// Even if ReadAt returns n < len(p), it may use all of p as scratch space during the call. If some data is available but not len(p) bytes, ReadAt blocks until either all the data is available or an error occurs. In this respect ReadAt is different from Read.
-	// 	//
-	// 	// If the n = len(p) bytes returned by ReadAt are at the end of the input source, ReadAt may return either err == EOF or err == nil.
-	// 	//
-	// 	// If ReadAt is reading from an input source with a seek offset, ReadAt should not affect nor be affected by the underlying seek offset.
-	// 	//
-	// 	// Clients of ReadAt can execute parallel ReadAt calls on the same input source.
-	// 	//
-	// 	// Implementations must not retain p.
-	// 	io.ReaderAt
-	//
-	// 	// WriterAt is the interface that wraps the basic WriteAt method.
-	// 	// 	WriteAt(p []byte, off int64) (n int, err error)
-	// 	//
-	// 	// WriteAt writes len(p) bytes from p to the underlying data stream at offset off. It returns the number of bytes written from p (0 <= n <= len(p)) and any error encountered that caused the write to stop early. WriteAt must return a non-nil error if it returns n < len(p).
-	// 	//
-	// 	// If WriteAt is writing to a destination with a seek offset, WriteAt should not affect nor be affected by the underlying seek offset.
-	// 	io.WriterAt
-	//
-	// 	// FileInfo methods
-	// 	// Name() string       // base name of the file
-	// 	// Size() int64        // length in bytes for regular files; system-dependent for others
-	// 	// Mode() FileMode     // file mode bits
-	// 	// ModTime() time.Time // modification time
-	// 	// IsDir() bool        // abbreviation for Mode().IsDir()
-	// 	// Sys() interface{}   // underlying data source (can return nil)
-	// 	fs.FileInfo
-	//
-	// 	// FileMode methods
-	// 	// String() string 	// human-readable representation of the file
-	// 	// IsDir() bool 	// abbreviation for Mode().IsDir()
-	// 	// IsRegular() bool // IsRegular reports whether m is a regular file.
-	// 	// Perm() FileMode	// Perm returns the Unix permission bits
-	// 	// Type() FileMode
-	// 	FileModer
-	//
-	// 	// FileOps methods
-	// 	// Abs() (string, error)
-	// 	// Base(path string) string
-	// 	// Chmod(mode os.FileMode) error
-	// 	// Dir(path string) string
-	// 	// Ext(path string) string
-	// 	// Move(path string) error
-	// 	// Split(path string) (dir, file string)
-	// 	FileOps
-	//
-	// 	// Unix File Operations
-	// 	// 	Fd() uintptr
-	// 	// 	Link(newname string) error
-	// 	// 	Readlink() (string, error)
-	// 	// 	Remove() error
-	// 	// 	Symlink(newname string) error
-	// 	// 	Truncate(size int64) error
-	// 	FileUnix
-	// }
 	GoFile
 
 	// fs.File
@@ -313,24 +283,14 @@ func (f *basicFile) rwc() Handle {
 		return nil
 	}
 
-	b := bufio.NewReadWriter(f.Reader().(*bufio.Reader), f.Writer().(*bufio.Writer))
+	b := bufRWC{}
+	b.ReadWriter = bufio.NewReadWriter(f.Reader().(*bufio.Reader), f.Writer().(*bufio.Writer))
 
-	return b
+	return &b
 }
 
 func (f *basicFile) Reader() io.Reader { return bufio.NewReader(f.File) }
 func (f *basicFile) Writer() io.Writer { return bufio.NewWriter(f.File) }
-
-func (f *basicFile) Stat() (fs.FileInfo, error) {
-	if f.fi == nil {
-		fi, err := os.Stat(f.Name())
-		if Err(err) != nil {
-			return nil, NewGoFileError("Gofile.Stat()", f.providedName, err)
-		}
-		f.fi = fi
-	}
-	return f.fi, nil
-}
 
 // Flush flushes any in-memory copy of recent changes,
 // closes the underlying file, and resets the file
@@ -386,16 +346,7 @@ func (f *basicFile) timeStamp() time.Time {
 	return f.modTime
 }
 
-// Mode - returns the file mode bits
-func (f *basicFile) Mode() fs.FileMode {
-	return f.FileInfo().Mode()
-}
-
-// Name - returns the base name of the file
-func (f *basicFile) Name() string {
-	return filepath.Base(f.Abs())
-}
-
+// Abs returns an absolute representation of path. If the path is not absolute it will be joined with the current working directory to turn it into an absolute path. The absolute path name for a given file is not guaranteed to be unique. Abs calls Clean on the result.
 func (f *basicFile) Abs() string {
 	s, err := filepath.Abs(f.providedName)
 	if err != nil {
@@ -414,13 +365,10 @@ func (f *basicFile) Dir() string { return filepath.Dir(f.Abs()) }
 func (f *basicFile) Ext() string { return filepath.Ext(f.Abs()) }
 
 // Split splits path immediately following the final Separator, separating it into a directory and file name component. If there is no Separator in path, Split returns an empty dir and file set to path. The returned values have the property that path = dir+file.
-func (f *basicFile) Split() (dir, file string) { return filepath.Split(f.Abs()) }
-
-func (f *basicFile) Link(newname string) error { return os.Link(f.Abs(), newname) }
-
-func (f *basicFile) Move(newname string) error   { return os.Rename(f.Abs(), newname) }
-func (f *basicFile) Rename(newname string) error { return os.Rename(f.Abs(), newname) }
-
+func (f *basicFile) Split() (dir, file string)    { return filepath.Split(f.Abs()) }
+func (f *basicFile) Link(newname string) error    { return os.Link(f.Abs(), newname) }
+func (f *basicFile) Move(newname string) error    { return os.Rename(f.Abs(), newname) }
+func (f *basicFile) Rename(newname string) error  { return os.Rename(f.Abs(), newname) }
 func (f *basicFile) Readlink() (string, error)    { return os.Readlink(f.Abs()) }
 func (f *basicFile) Symlink(newname string) error { return os.Symlink(f.Abs(), newname) }
 
@@ -434,42 +382,6 @@ func (f *basicFile) Remove() error {
 		return err
 	}
 	return f.Close()
-}
-
-// Size - returns the length in bytes for regular files; system-dependent for others
-func (f *basicFile) Size() int64 {
-	return f.FileInfo().Size()
-}
-
-// ModTime - returns the modification time
-func (f *basicFile) ModTime() time.Time {
-	return f.FileInfo().ModTime()
-}
-
-// IsDir - returns true if the file is a directory
-func (f *basicFile) IsDir() bool {
-	return f.FileInfo().IsDir()
-}
-
-// Sys - returns the underlying data source (can return nil)
-func (f *basicFile) Sys() interface{} {
-	return f.FileInfo().Sys()
-}
-
-func (f *basicFile) IsRegular() bool {
-	return f.FileInfo().Mode().IsRegular()
-}
-
-func (f *basicFile) Perm() fs.FileMode {
-	return f.FileInfo().Mode().Perm()
-}
-
-func (f *basicFile) Type() fs.FileMode {
-	return f.FileInfo().Mode().Type()
-}
-
-func (f *basicFile) String() string {
-	return fmt.Sprintf("%8s %15s", f.Mode(), f.Name())
 }
 
 func (bf *basicFile) Create() error {
