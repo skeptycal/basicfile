@@ -2,8 +2,6 @@ package basicfile
 
 import (
 	"io/fs"
-	"os"
-	"time"
 )
 
 // Reference types copied from io package
