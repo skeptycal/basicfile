@@ -149,7 +149,7 @@ type BasicFile interface {
 
 	// GoFile implements the most common
 	// file functionality in Go.
-	GoFile
+	// GoFile // TODO fix implementation ...
 
 	// Dirty sets isDirty to true, forcing any
 	// cached values to be recalculated.

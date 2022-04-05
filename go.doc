@@ -4,9 +4,10 @@ const NormalMode os.FileMode = 0644 ...
 var Err ...
 var ErrNoAlloc = NewGoFileError("memory allocation failure", "", ErrInvalid) ...
 var NewSyscallError = os.NewSyscallError
+var SameFile = os.SameFile
 func CreateSafe(name string) (io.ReadWriteCloser, error)
 func Exists(filename string) bool
-func Mode(file string) os.FileMode
+func FileMode(file string) os.FileMode
 func NotExists(filename string) bool
 func PWD() string
 func RegularFileInfo(filename string) os.FileInfo
@@ -16,7 +17,7 @@ type BasicFile interface{ ... }
     func NewBasicFile(filename string) (BasicFile, error)
     func Open(name string) (BasicFile, error)
 type Closer interface{ ... }
-type DataFile = BasicFile
+type DirEntry = fs.DirEntry
 type Errer interface{ ... }
     func NewPathError(op, path string, err error) Errer
 type FS = fs.FS
@@ -29,7 +30,7 @@ type GoFileError struct{ ... }
     func NewGoFileError(op, path string, err error) *GoFileError
     func SetError(op, path string, err GoFileError) GoFileError
 type Handle interface{ ... }
-type RWAt interface{}
+type RWAt interface{ ... }
 type RWToFrom interface{ ... }
 type ReadDirFile = fs.ReadDirFile
 type SyscallError = os.SyscallError

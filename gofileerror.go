@@ -22,14 +22,6 @@ type GoFileError struct {
 	Err  error
 }
 
-func PWD() string {
-	path, err := os.Getwd()
-	if err != nil {
-		path = "unknown"
-	}
-	return path
-}
-
 // NewGoFileError returns, as an error, a new
 // GoFileError which implements the gofile.Errer
 // interface.
