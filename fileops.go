@@ -34,4 +34,4 @@ func NotExists(filename string) bool {
 // the decision may be based on the path names.
 // SameFile only applies to results returned by this package gofile
 // It returns false in other cases.
-var SameFile = os.SameFile
+// var SameFile = os.SameFile

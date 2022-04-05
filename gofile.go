@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func (f *basicFile) Handle() *os.File {
+func (f *basicFile) OsFile() *os.File {
 	return f.File
 }
 
@@ -31,7 +31,7 @@ func (f *basicFile) IsDir() bool {
 }
 
 // Type returns type bits in m (m & ModeType).
-func (f *basicFile) Type() FileMode { return f.Mode().Type() }
+func (f *basicFile) Type() os.FileMode { return f.Mode().Type() }
 
 // Info is an alias of Stat() that satisfies
 // the fs.DirEntry interface.
@@ -60,7 +60,7 @@ func (f *basicFile) Sys() interface{} {
 }
 
 // Mode - returns the file mode bits
-func (f *basicFile) Mode() fs.FileMode {
+func (f *basicFile) Mode() os.FileMode {
 	return f.FileInfo().Mode()
 }
 
@@ -79,33 +79,18 @@ func (f *basicFile) IsRegular() bool {
 }
 
 // Perm returns the Unix permission bits
-func (f *basicFile) Perm() FileMode {
+func (f *basicFile) Perm() os.FileMode {
 	return f.FileInfo().Mode().Perm()
 }
 
 type (
 	GoFile interface {
-
-		// A File provides access to a single file.
-		// The File interface is the minimum
-		// implementation required of the file.
-		// A file may implement additional interfaces,
-		// such as ReadDirFile, ReaderAt, or Seeker,
-		// to provide additional or optimized
-		// functionality.
-		//
-		//  type File interface {
-		//  	Stat() (fs.FileInfo, error)
-		//  	Read([]byte) (int, error)
-		//  	Close() error
-		//  }
-		//
-		// Reference: standard library fs.go
-		fsFile
-
 		Seek(offset int64, whence int) (int64, error)
 		Open() error
 		Create() error
+
+		// OsFile returns the file handle, *os.File.
+		OsFile() *os.File
 
 		// Io returns the underlying io.ReadWriteCloser.
 		// For convenience, the following are implemented:
@@ -125,19 +110,19 @@ type (
 		// 	type DirEntry interface {
 		//		Name() string
 		//		IsDir() bool
-		//		Type() FileMode
+		//		Type() os.FileMode
 		//		Info() (FileInfo, error)
 		//	}
 		DirEntry() fs.DirEntry
 		Name() string
 		IsDir() bool
-		Type() FileMode
+		Type() os.FileMode
 		Info() (FileInfo, error)
 
 		// FileInfo interface ... also implements fs.DirEntry
 		// 	Name() string       // base name of the file
 		// 	Size() int64        // length in bytes for regular files; system-dependent for others
-		// 	Mode() FileMode     // file mode bits
+		// 	Mode() os.FileMode     // file mode bits
 		// 	ModTime() time.Time // modification time
 		// 	IsDir() bool        // abbreviation for Mode().IsDir()
 		// 	Sys() interface{}   // underlying data source (can return nil)
@@ -150,17 +135,17 @@ type (
 		// 	String() string 	// human-readable representation of the file
 		// 	IsDir() bool 		// abbreviation for Mode().IsDir()
 		// 	IsRegular() bool 	// IsRegular reports whether m is a regular file.
-		// 	Perm() FileMode		// Perm returns the Unix permission bits
-		// 	Type() FileMode
-		Mode() FileMode  // Info().Mode()
-		String() string  // human-readable representation of the file
-		IsRegular() bool // IsRegular reports whether the file a regular file
-		Perm() FileMode  // Perm returns the Unix permission bits
+		// 	Perm() os.FileMode		// Perm returns the Unix permission bits
+		// 	Type() os.FileMode
+		Mode() os.FileMode // Info().Mode()
+		String() string    // human-readable representation of the file
+		IsRegular() bool   // IsRegular reports whether the file a regular file
+		Perm() os.FileMode // Perm returns the Unix permission bits
 
 		// FileOps methods
 		// Abs() (string, error)
 		// Base(path string) string
-		// Chmod(mode os.FileMode) error
+		// Chmod(mode os.os.FileMode) error
 		// Dir(path string) string
 		// Ext(path string) string
 		// Move(path string) error

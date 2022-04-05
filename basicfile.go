@@ -3,7 +3,6 @@ package basicfile
 import (
 	"bufio"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -140,74 +139,21 @@ func CreateSafe(name string) (io.ReadWriteCloser, error) {
 // ReadDirFile, ReaderAt, or Seeker, to provide additional
 // or optimized functionality.
 //
-//  type FileModer interface {
-//  	String() string
-//  	IsDir() bool
-//  	IsRegular() bool
-//  	Perm() FileMode
-//  	Type() FileMode
-//  }
-//
-// A FileInfo describes a file and is returned by Stat.
-//
-//  type FileInfo interface {
-//      Name() string       // base name of the file
-//      Size() int64        // length in bytes for regular files; system-dependent for others
-//      Mode() FileMode     // file mode bits
-//      ModTime() time.Time // modification time
-//      IsDir() bool        // abbreviation for Mode().IsDir()
-//      Sys() interface{}   // underlying data source (can return nil)
-//  }
-//
 // Reference: standard library fs.go
-// using File, FileInfo, and FileModer interfaces
-//
-// Minimum required to implement fs.File interface:
-//  type File interface {
-//     Stat() (fs.FileInfo, error)
-//     Read([]byte) (int, error)
-//     Close() error
-//  }
-//
-// Implements fs.FileInfo interface:
-// 	// A FileInfo describes a file and is returned by Stat.
-//  type FileInfo interface {
-//  	Name() string       // base name of the file
-// 	Size() int64        // length in bytes for regular files; sy stem-dependent for others
-//  	Mode() FileMode     // file mode bits
-//  	ModTime() time.Time // modification time
-//  	IsDir() bool        // abbreviation for Mode().IsDir()
-//  	Sys() interface{}   // underlying data source (can return nil)
-//  }
 type BasicFile interface {
-	// Handle returns the file handle, *os.File.
-	Handle() *os.File
+
+	// A File provides access to a single file.
+	// The File interface is the minimum
+	// implementation required of the file.
+	fsFile
+
+	// GoFile implements the most common
+	// file functionality in Go.
+	GoFile
 
 	// Dirty sets isDirty to true, forcing any
 	// cached values to be recalculated.
 	Dirty()
-
-	// The minimum interface that is implemented
-	// by a File is:
-	Seek(offset int64, whence int) (int64, error)
-	Open() error
-	Create() error
-
-	GoFile
-
-	// fs.File
-	Stat() (fs.FileInfo, error)
-	Read([]byte) (int, error)
-	Close() error
-
-	// FileModer
-	// fs.FileInfo
-
-	// Additional basic methods:
-	// Abs() string // absolute path of the file
-	// IsRegular() bo,ol // is a regular file?
-	// String() string
-
 }
 
 /*
@@ -241,16 +187,14 @@ Sync(). Error
 
 type (
 	basicFile struct {
-		providedName string // original user input
-		lock         bool
-		isDirty      bool
-		fi           os.FileInfo // cached file information
-		mode         FileMode    // cached file mode
-		modTime      time.Time   // used to validate cache entries
-
-		bufio.ReadWriter
-
-		*os.File // underlying file handle
+		providedName     string // original user input
+		lock             bool
+		isDirty          bool
+		fi               os.FileInfo // cached file information
+		mode             os.FileMode // cached file mode
+		modTime          time.Time   // used to validate cache entries
+		bufio.ReadWriter             // only allocated when needed.
+		*os.File                     // only opened when needed.
 	}
 )
 
