@@ -9,5 +9,5 @@ require (
 
 require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
-	golang.org/x/sys v0.0.0-20220329152356-43be30ef3008 // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )
